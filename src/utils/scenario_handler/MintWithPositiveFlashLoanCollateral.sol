@@ -12,67 +12,83 @@ contract MintWithPositiveFlashLoanCollateral {
 
     error MintWithPositiveFlashLoanCollateralSlippageExceeded(uint256 userAssetsIn, uint256 maxCollateralAssets);
 
+    struct MintWithPositiveFlashLoanCollateralInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 maxAssets;
+    }
+
+    struct MintWithPositiveFlashLoanCollateralCallbackPayload {
+        int256 deltaShares;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 maxAssets;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+    }
+
     function mintWithPositiveFlashLoanCollateral(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 maxAssets
+        MintWithPositiveFlashLoanCollateralInput memory input
     ) internal returns (uint256) {
-        uint256 userCollateralBalance = IERC20(collateralAsset).balanceOf(user);
-        IFlashLoanConnector(collateralFlashLoan).flashLoan(
-            collateralAsset,
-            uint256(deltaCollateral),
-            abi.encodeCall(
-                MintWithPositiveFlashLoanCollateral.mintWithPositiveFlashLoanCollateralFallback,
-                (
-                    deltaShares,
-                    collateralFlashLoan,
-                    borrowToCollateralExchange,
-                    vault,
-                    user,
-                    collateralAsset,
-                    borrowAsset,
-                    maxAssets,
-                    deltaCollateral,
-                    deltaBorrow
-                )
-            )
+        uint256 userCollateralBalance = IERC20(input.collateralAsset).balanceOf(input.user);
+        MintWithPositiveFlashLoanCollateralCallbackPayload memory payload =
+            MintWithPositiveFlashLoanCollateralCallbackPayload({
+                deltaShares: input.deltaShares,
+                collateralFlashLoan: input.collateralFlashLoan,
+                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                vault: input.vault,
+                user: input.user,
+                collateralAsset: input.collateralAsset,
+                borrowAsset: input.borrowAsset,
+                maxAssets: input.maxAssets,
+                deltaCollateral: input.deltaCollateral,
+                deltaBorrow: input.deltaBorrow
+            });
+        IFlashLoanConnector(input.collateralFlashLoan).flashLoan(
+            input.collateralAsset,
+            uint256(input.deltaCollateral),
+            abi.encodeCall(MintWithPositiveFlashLoanCollateral.mintWithPositiveFlashLoanCollateralFallback, (payload))
         );
 
-        return userCollateralBalance - IERC20(collateralAsset).balanceOf(user);
+        return userCollateralBalance - IERC20(input.collateralAsset).balanceOf(input.user);
     }
 
     function mintWithPositiveFlashLoanCollateralFallback(
-        int256 deltaShares,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 maxAssets,
-        int256 deltaCollateral,
-        int256 deltaBorrow
+        MintWithPositiveFlashLoanCollateralCallbackPayload calldata payload
     ) external {
-        IERC20(collateralAsset).forceApprove(vault, uint256(deltaCollateral));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(payload.collateralAsset).forceApprove(payload.vault, uint256(payload.deltaCollateral));
+        ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(borrowAsset).forceApprove(borrowToCollateralExchange, uint256(deltaBorrow));
-        uint256 collateralAssetsOut = IExchangeConnector(borrowToCollateralExchange).exchangeIn(
-            borrowAsset, collateralAsset, uint256(deltaBorrow), 0
+        IERC20(payload.borrowAsset).forceApprove(
+            payload.borrowToCollateralExchange, uint256(payload.deltaBorrow)
         );
-        uint256 userAssetsIn = uint256(deltaCollateral) - collateralAssetsOut;
-        require(userAssetsIn <= maxAssets, MintWithPositiveFlashLoanCollateralSlippageExceeded(userAssetsIn, maxAssets));
-        IERC20(collateralAsset).safeTransferFrom(user, address(this), userAssetsIn);
+        uint256 collateralAssetsOut = IExchangeConnector(payload.borrowToCollateralExchange).exchangeIn(
+            payload.borrowAsset, payload.collateralAsset, uint256(payload.deltaBorrow), 0
+        );
+        uint256 userAssetsIn = uint256(payload.deltaCollateral) - collateralAssetsOut;
+        require(
+            userAssetsIn <= payload.maxAssets,
+            MintWithPositiveFlashLoanCollateralSlippageExceeded(userAssetsIn, payload.maxAssets)
+        );
+        IERC20(payload.collateralAsset).safeTransferFrom(payload.user, address(this), userAssetsIn);
 
-        IERC20(vault).safeTransfer(user, uint256(deltaShares));
-        IERC20(borrowAsset).forceApprove(collateralFlashLoan, uint256(deltaCollateral));
-        IFlashLoanConnector(collateralFlashLoan).returnFlashLoan(collateralAsset, uint256(deltaCollateral));
+        IERC20(payload.vault).safeTransfer(payload.user, uint256(payload.deltaShares));
+        IERC20(payload.borrowAsset).forceApprove(
+            payload.collateralFlashLoan, uint256(payload.deltaCollateral)
+        );
+        IFlashLoanConnector(payload.collateralFlashLoan).returnFlashLoan(
+            payload.collateralAsset, uint256(payload.deltaCollateral)
+        );
     }
 }

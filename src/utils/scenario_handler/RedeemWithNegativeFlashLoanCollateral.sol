@@ -12,72 +12,85 @@ contract RedeemWithNegativeFlashLoanCollateral {
 
     error RedeemWithNegativeFlashLoanCollateralSlippageExceeded(uint256 userAssetsOut, uint256 minAssetsCollateral);
 
+    struct RedeemWithNegativeFlashLoanCollateralInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address borrowFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 minAssetsCollateral;
+    }
+
+    struct RedeemWithNegativeFlashLoanCollateralCallbackPayload {
+        int256 deltaShares;
+        address borrowFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 minAssetsCollateral;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+    }
+
     function redeemWithNegativeFlashLoanCollateral(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address borrowFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 minAssetsCollateral
+        RedeemWithNegativeFlashLoanCollateralInput memory input
     ) internal returns (uint256) {
-        uint256 userCollateralBalance = IERC20(collateralAsset).balanceOf(user);
-        IFlashLoanConnector(borrowFlashLoan).flashLoan(
-            borrowAsset,
-            uint256(-deltaBorrow),
-            abi.encodeCall(
-                RedeemWithNegativeFlashLoanCollateral.redeemWithNegativeFlashLoanCollateralFallback,
-                (
-                    deltaShares,
-                    borrowFlashLoan,
-                    borrowToCollateralExchange,
-                    vault,
-                    user,
-                    collateralAsset,
-                    borrowAsset,
-                    minAssetsCollateral,
-                    deltaCollateral,
-                    deltaBorrow
-                )
-            )
+        uint256 userCollateralBalance = IERC20(input.collateralAsset).balanceOf(input.user);
+        RedeemWithNegativeFlashLoanCollateralCallbackPayload memory payload =
+            RedeemWithNegativeFlashLoanCollateralCallbackPayload({
+                deltaShares: input.deltaShares,
+                borrowFlashLoan: input.borrowFlashLoan,
+                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                vault: input.vault,
+                user: input.user,
+                collateralAsset: input.collateralAsset,
+                borrowAsset: input.borrowAsset,
+                minAssetsCollateral: input.minAssetsCollateral,
+                deltaCollateral: input.deltaCollateral,
+                deltaBorrow: input.deltaBorrow
+            });
+        IFlashLoanConnector(input.borrowFlashLoan).flashLoan(
+            input.borrowAsset,
+            uint256(-input.deltaBorrow),
+            abi.encodeCall(RedeemWithNegativeFlashLoanCollateral.redeemWithNegativeFlashLoanCollateralFallback, (payload))
         );
 
-        return IERC20(collateralAsset).balanceOf(user) - userCollateralBalance;
+        return IERC20(input.collateralAsset).balanceOf(input.user) - userCollateralBalance;
     }
 
     function redeemWithNegativeFlashLoanCollateralFallback(
-        int256 deltaShares,
-        address borrowFlashLoan,
-        address collateralToBorrowExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 minAssetsCollateral,
-        int256 deltaCollateral,
-        int256 deltaBorrow
+        RedeemWithNegativeFlashLoanCollateralCallbackPayload calldata payload
     ) external {
-        IERC20(vault).safeTransferFrom(user, address(this), uint256(-deltaShares));
+        IERC20(payload.vault).safeTransferFrom(payload.user, address(this), uint256(-payload.deltaShares));
 
-        IERC20(borrowAsset).forceApprove(vault, uint256(-deltaBorrow));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(payload.borrowAsset).forceApprove(payload.vault, uint256(-payload.deltaBorrow));
+        ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(borrowAsset).forceApprove(collateralToBorrowExchange, uint256(-deltaBorrow));
-        uint256 collateralAssetsIn = IExchangeConnector(collateralToBorrowExchange).exchangeOut(
-            borrowAsset, collateralAsset, uint256(-deltaBorrow), uint256(-deltaCollateral)
+        IERC20(payload.borrowAsset).forceApprove(
+            payload.borrowToCollateralExchange, uint256(-payload.deltaBorrow)
+        );
+        uint256 collateralAssetsIn = IExchangeConnector(payload.borrowToCollateralExchange).exchangeOut(
+            payload.borrowAsset, payload.collateralAsset, uint256(-payload.deltaBorrow), uint256(-payload.deltaCollateral)
         );
 
-        uint256 userAssetsOut = uint256(-deltaCollateral) - collateralAssetsIn;
+        uint256 userAssetsOut = uint256(-payload.deltaCollateral) - collateralAssetsIn;
         require(
-            userAssetsOut >= minAssetsCollateral,
-            RedeemWithNegativeFlashLoanCollateralSlippageExceeded(userAssetsOut, minAssetsCollateral)
+            userAssetsOut >= payload.minAssetsCollateral,
+            RedeemWithNegativeFlashLoanCollateralSlippageExceeded(userAssetsOut, payload.minAssetsCollateral)
         );
-        IERC20(collateralAsset).safeTransfer(user, userAssetsOut);
+        IERC20(payload.collateralAsset).safeTransfer(payload.user, userAssetsOut);
 
-        IERC20(borrowAsset).forceApprove(borrowFlashLoan, uint256(-deltaBorrow));
-        IFlashLoanConnector(borrowFlashLoan).returnFlashLoan(borrowAsset, uint256(-deltaBorrow));
+        IERC20(payload.borrowAsset).forceApprove(
+            payload.borrowFlashLoan, uint256(-payload.deltaBorrow)
+        );
+        IFlashLoanConnector(payload.borrowFlashLoan).returnFlashLoan(
+            payload.borrowAsset, uint256(-payload.deltaBorrow)
+        );
     }
 }

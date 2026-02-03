@@ -10,34 +10,38 @@ contract MintWithNoFlashLoanCollateral {
 
     error MintWithNoFlashLoanCollateralSlippageExceeded(uint256 userAssetsIn, uint256 maxCollateralAssets);
 
+    struct MintWithNoFlashLoanCollateralInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address collateralToBorrowExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 maxAssetsCollateral;
+    }
+
     function mintWithNoFlashLoanCollateral(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address collateralToBorrowExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 maxAssetsCollateral
+        MintWithNoFlashLoanCollateralInput memory input
     ) internal returns (uint256) {
-        IERC20(collateralAsset).safeTransferFrom(user, address(this), maxAssetsCollateral);
+        IERC20(input.collateralAsset).safeTransferFrom(input.user, address(this), input.maxAssetsCollateral);
 
-        IERC20(collateralAsset).forceApprove(collateralToBorrowExchange, maxAssetsCollateral);
-        uint256 collateralAssetsIn = IExchangeConnector(collateralToBorrowExchange).exchangeOut(
-            collateralAsset, borrowAsset, uint256(-deltaBorrow), maxAssetsCollateral
+        IERC20(input.collateralAsset).forceApprove(input.collateralToBorrowExchange, input.maxAssetsCollateral);
+        uint256 collateralAssetsIn = IExchangeConnector(input.collateralToBorrowExchange).exchangeOut(
+            input.collateralAsset, input.borrowAsset, uint256(-input.deltaBorrow), input.maxAssetsCollateral
         );
 
-        uint256 collateralAssetsNeeded = collateralAssetsIn + uint256(deltaCollateral);
+        uint256 collateralAssetsNeeded = collateralAssetsIn + uint256(input.deltaCollateral);
         require(
-            collateralAssetsNeeded <= maxAssetsCollateral,
-            MintWithNoFlashLoanCollateralSlippageExceeded(collateralAssetsNeeded, maxAssetsCollateral)
+            collateralAssetsNeeded <= input.maxAssetsCollateral,
+            MintWithNoFlashLoanCollateralSlippageExceeded(collateralAssetsNeeded, input.maxAssetsCollateral)
         );
-        IERC20(borrowAsset).forceApprove(vault, uint256(-deltaBorrow));
-        IERC20(collateralAsset).forceApprove(vault, uint256(deltaCollateral));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(input.borrowAsset).forceApprove(input.vault, uint256(-input.deltaBorrow));
+        IERC20(input.collateralAsset).forceApprove(input.vault, uint256(input.deltaCollateral));
+        ILowLevelVault(input.vault).executeLowLevelRebalanceShares(input.deltaShares);
 
-        IERC20(vault).safeTransfer(user, uint256(deltaShares));
+        IERC20(input.vault).safeTransfer(input.user, uint256(input.deltaShares));
         return collateralAssetsNeeded;
     }
 }

@@ -12,73 +12,86 @@ contract RedeemWithPositiveFlashLoanBorrow {
 
     error RedeemWithPositiveFlashLoanBorrowSlippageExceeded(uint256 userAssetsOut, uint256 minAssetsBorrow);
 
+    struct RedeemWithPositiveFlashLoanBorrowInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 minAssetsBorrow;
+    }
+
+    struct RedeemWithPositiveFlashLoanBorrowCallbackPayload {
+        int256 deltaShares;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 minAssetsBorrow;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+    }
+
     function redeemWithPositiveFlashLoanBorrow(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 minAssetsBorrow
+        RedeemWithPositiveFlashLoanBorrowInput memory input
     ) internal returns (uint256) {
-        uint256 userBorrowBalance = IERC20(borrowAsset).balanceOf(user);
-        IFlashLoanConnector(collateralFlashLoan).flashLoan(
-            collateralAsset,
-            uint256(deltaCollateral),
-            abi.encodeCall(
-                RedeemWithPositiveFlashLoanBorrow.redeemWithPositiveFlashLoanBorrowFallback,
-                (
-                    deltaShares,
-                    collateralFlashLoan,
-                    borrowToCollateralExchange,
-                    vault,
-                    user,
-                    collateralAsset,
-                    borrowAsset,
-                    minAssetsBorrow,
-                    deltaCollateral,
-                    deltaBorrow
-                )
-            )
+        uint256 userBorrowBalance = IERC20(input.borrowAsset).balanceOf(input.user);
+        RedeemWithPositiveFlashLoanBorrowCallbackPayload memory payload =
+            RedeemWithPositiveFlashLoanBorrowCallbackPayload({
+                deltaShares: input.deltaShares,
+                collateralFlashLoan: input.collateralFlashLoan,
+                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                vault: input.vault,
+                user: input.user,
+                collateralAsset: input.collateralAsset,
+                borrowAsset: input.borrowAsset,
+                minAssetsBorrow: input.minAssetsBorrow,
+                deltaCollateral: input.deltaCollateral,
+                deltaBorrow: input.deltaBorrow
+            });
+        IFlashLoanConnector(input.collateralFlashLoan).flashLoan(
+            input.collateralAsset,
+            uint256(input.deltaCollateral),
+            abi.encodeCall(RedeemWithPositiveFlashLoanBorrow.redeemWithPositiveFlashLoanBorrowFallback, (payload))
         );
 
-        return IERC20(borrowAsset).balanceOf(user) - userBorrowBalance;
+        return IERC20(input.borrowAsset).balanceOf(input.user) - userBorrowBalance;
     }
 
     function redeemWithPositiveFlashLoanBorrowFallback(
-        int256 deltaShares,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 minAssetsBorrow,
-        int256 deltaCollateral,
-        int256 deltaBorrow
+        RedeemWithPositiveFlashLoanBorrowCallbackPayload calldata payload
     ) external {
-        IERC20(vault).safeTransferFrom(user, address(this), uint256(-deltaShares));
+        IERC20(payload.vault).safeTransferFrom(payload.user, address(this), uint256(-payload.deltaShares));
 
-        IERC20(collateralAsset).forceApprove(vault, uint256(deltaCollateral));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(payload.collateralAsset).forceApprove(payload.vault, uint256(payload.deltaCollateral));
+        ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(borrowAsset).forceApprove(borrowToCollateralExchange, uint256(deltaBorrow));
-        uint256 borrowAssetsIn = IExchangeConnector(borrowToCollateralExchange).exchangeOut(
-            borrowAsset, collateralAsset, uint256(deltaCollateral), uint256(deltaBorrow)
+        IERC20(payload.borrowAsset).forceApprove(
+            payload.borrowToCollateralExchange, uint256(payload.deltaBorrow)
+        );
+        uint256 borrowAssetsIn = IExchangeConnector(payload.borrowToCollateralExchange).exchangeOut(
+            payload.borrowAsset, payload.collateralAsset, uint256(payload.deltaCollateral), uint256(payload.deltaBorrow)
         );
 
-        uint256 userAssetsOut = uint256(deltaBorrow) - borrowAssetsIn;
+        uint256 userAssetsOut = uint256(payload.deltaBorrow) - borrowAssetsIn;
         require(
-            userAssetsOut >= minAssetsBorrow,
-            RedeemWithPositiveFlashLoanBorrowSlippageExceeded(userAssetsOut, minAssetsBorrow)
+            userAssetsOut >= payload.minAssetsBorrow,
+            RedeemWithPositiveFlashLoanBorrowSlippageExceeded(userAssetsOut, payload.minAssetsBorrow)
         );
 
-        IERC20(borrowAsset).safeTransfer(user, userAssetsOut);
+        IERC20(payload.borrowAsset).safeTransfer(payload.user, userAssetsOut);
 
-        IERC20(collateralAsset).forceApprove(collateralFlashLoan, uint256(deltaCollateral));
-        IFlashLoanConnector(collateralFlashLoan).returnFlashLoan(collateralAsset, uint256(deltaCollateral));
+        IERC20(payload.collateralAsset).forceApprove(
+            payload.collateralFlashLoan, uint256(payload.deltaCollateral)
+        );
+        IFlashLoanConnector(payload.collateralFlashLoan).returnFlashLoan(
+            payload.collateralAsset, uint256(payload.deltaCollateral)
+        );
     }
 }

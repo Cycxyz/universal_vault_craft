@@ -10,71 +10,82 @@ contract MintWithPositiveFlashLoanBorrow {
     using SafeERC20 for IERC20;
     using SafeERC20 for ILowLevelVault;
 
+    struct MintWithPositiveFlashLoanBorrowInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 maxAssetsBorrow;
+    }
+
+    struct MintWithPositiveFlashLoanBorrowCallbackPayload {
+        int256 deltaShares;
+        address collateralFlashLoan;
+        address borrowToCollateralExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 maxAssetsBorrow;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+    }
+
     function mintWithPositiveFlashLoanBorrow(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 maxAssetsBorrow
+        MintWithPositiveFlashLoanBorrowInput memory input
     ) internal returns (uint256) {
-        uint256 userBorrowBalance = IERC20(borrowAsset).balanceOf(user);
-        IFlashLoanConnector(collateralFlashLoan).flashLoan(
-            collateralAsset,
-            uint256(deltaCollateral),
-            abi.encodeCall(
-                MintWithPositiveFlashLoanBorrow.mintWithPositiveFlashLoanBorrowFallback,
-                (
-                    deltaShares,
-                    collateralFlashLoan,
-                    borrowToCollateralExchange,
-                    vault,
-                    user,
-                    collateralAsset,
-                    borrowAsset,
-                    maxAssetsBorrow,
-                    deltaCollateral,
-                    deltaBorrow
-                )
-            )
+        uint256 userBorrowBalance = IERC20(input.borrowAsset).balanceOf(input.user);
+        MintWithPositiveFlashLoanBorrowCallbackPayload memory payload =
+            MintWithPositiveFlashLoanBorrowCallbackPayload({
+                deltaShares: input.deltaShares,
+                collateralFlashLoan: input.collateralFlashLoan,
+                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                vault: input.vault,
+                user: input.user,
+                collateralAsset: input.collateralAsset,
+                borrowAsset: input.borrowAsset,
+                maxAssetsBorrow: input.maxAssetsBorrow,
+                deltaCollateral: input.deltaCollateral,
+                deltaBorrow: input.deltaBorrow
+            });
+        IFlashLoanConnector(input.collateralFlashLoan).flashLoan(
+            input.collateralAsset,
+            uint256(input.deltaCollateral),
+            abi.encodeCall(MintWithPositiveFlashLoanBorrow.mintWithPositiveFlashLoanBorrowFallback, (payload))
         );
 
-        return userBorrowBalance - IERC20(borrowAsset).balanceOf(user);
+        return userBorrowBalance - IERC20(input.borrowAsset).balanceOf(input.user);
     }
 
     function mintWithPositiveFlashLoanBorrowFallback(
-        int256 deltaShares,
-        address collateralFlashLoan,
-        address borrowToCollateralExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 maxAssetsBorrow,
-        int256 deltaCollateral,
-        int256 deltaBorrow
+        MintWithPositiveFlashLoanBorrowCallbackPayload calldata payload
     ) external {
-        IERC20(collateralAsset).forceApprove(vault, uint256(deltaCollateral));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(payload.collateralAsset).forceApprove(payload.vault, uint256(payload.deltaCollateral));
+        ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(borrowAsset).safeTransferFrom(user, address(this), maxAssetsBorrow);
-        uint256 maxAmountIn = uint256(deltaBorrow) + maxAssetsBorrow;
-        IERC20(borrowAsset).forceApprove(borrowToCollateralExchange, maxAmountIn);
-        uint256 borrowAssetsIn = IExchangeConnector(borrowToCollateralExchange).exchangeOut(
-            borrowAsset, collateralAsset, uint256(deltaCollateral), maxAmountIn
+        IERC20(payload.borrowAsset).safeTransferFrom(payload.user, address(this), payload.maxAssetsBorrow);
+        uint256 maxAmountIn = uint256(payload.deltaBorrow) + payload.maxAssetsBorrow;
+        IERC20(payload.borrowAsset).forceApprove(payload.borrowToCollateralExchange, maxAmountIn);
+        uint256 borrowAssetsIn = IExchangeConnector(payload.borrowToCollateralExchange).exchangeOut(
+            payload.borrowAsset, payload.collateralAsset, uint256(payload.deltaCollateral), maxAmountIn
         );
 
-        uint256 userAssetsIn = borrowAssetsIn - uint256(-deltaBorrow);
-        uint256 refundAmount = maxAssetsBorrow - userAssetsIn;
+        uint256 userAssetsIn = borrowAssetsIn - uint256(-payload.deltaBorrow);
+        uint256 refundAmount = payload.maxAssetsBorrow - userAssetsIn;
 
-        IERC20(collateralAsset).safeTransfer(user, refundAmount);
-        IERC20(vault).safeTransfer(user, uint256(deltaShares));
+        IERC20(payload.collateralAsset).safeTransfer(payload.user, refundAmount);
+        IERC20(payload.vault).safeTransfer(payload.user, uint256(payload.deltaShares));
 
-        IERC20(collateralAsset).forceApprove(collateralFlashLoan, uint256(deltaCollateral));
-        IFlashLoanConnector(collateralFlashLoan).returnFlashLoan(collateralAsset, uint256(deltaCollateral));
+        IERC20(payload.collateralAsset).forceApprove(
+            payload.collateralFlashLoan, uint256(payload.deltaCollateral)
+        );
+        IFlashLoanConnector(payload.collateralFlashLoan).returnFlashLoan(
+            payload.collateralAsset, uint256(payload.deltaCollateral)
+        );
     }
 }

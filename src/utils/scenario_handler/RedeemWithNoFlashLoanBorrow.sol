@@ -11,33 +11,39 @@ contract RedeemWithNoFlashLoanBorrow {
 
     error RedeemWithNoFlashLoanBorrowSlippageExceeded(uint256 userAssetsOut, uint256 minAssetsBorrow);
 
+    struct RedeemWithNoFlashLoanBorrowInput {
+        int256 deltaShares;
+        int256 deltaCollateral;
+        int256 deltaBorrow;
+        address collateralToBorrowExchange;
+        address vault;
+        address user;
+        address collateralAsset;
+        address borrowAsset;
+        uint256 minAssetsBorrow;
+    }
+
     function redeemWithNoFlashLoanBorrow(
-        int256 deltaShares,
-        int256 deltaCollateral,
-        int256 deltaBorrow,
-        address collateralToBorrowExchange,
-        address vault,
-        address user,
-        address collateralAsset,
-        address borrowAsset,
-        uint256 minAssetsBorrow
+        RedeemWithNoFlashLoanBorrowInput memory input
     ) internal returns (uint256) {
-        IERC20(vault).safeTransferFrom(user, address(this), uint256(-deltaShares));
-        ILowLevelVault(vault).executeLowLevelRebalanceShares(deltaShares);
+        IERC20(input.vault).safeTransferFrom(input.user, address(this), uint256(-input.deltaShares));
+        ILowLevelVault(input.vault).executeLowLevelRebalanceShares(input.deltaShares);
 
-        IERC20(collateralAsset).forceApprove(collateralToBorrowExchange, uint256(-deltaCollateral));
-        uint256 borrowAssetsOut = IExchangeConnector(collateralToBorrowExchange).exchangeIn(
-            collateralAsset, borrowAsset, uint256(-deltaCollateral), 0
+        IERC20(input.collateralAsset).forceApprove(
+            input.collateralToBorrowExchange, uint256(-input.deltaCollateral)
+        );
+        uint256 borrowAssetsOut = IExchangeConnector(input.collateralToBorrowExchange).exchangeIn(
+            input.collateralAsset, input.borrowAsset, uint256(-input.deltaCollateral), 0
         );
 
-        uint256 userAssetsOut = borrowAssetsOut + uint256(deltaBorrow);
+        uint256 userAssetsOut = borrowAssetsOut + uint256(input.deltaBorrow);
         require(
-            userAssetsOut >= minAssetsBorrow,
-            RedeemWithNoFlashLoanBorrowSlippageExceeded(userAssetsOut, minAssetsBorrow)
+            userAssetsOut >= input.minAssetsBorrow,
+            RedeemWithNoFlashLoanBorrowSlippageExceeded(userAssetsOut, input.minAssetsBorrow)
         );
 
-        IERC20(borrowAsset).forceApprove(vault, uint256(-deltaBorrow));
-        IERC20(borrowAsset).safeTransfer(user, userAssetsOut);
+        IERC20(input.borrowAsset).forceApprove(input.vault, uint256(-input.deltaBorrow));
+        IERC20(input.borrowAsset).safeTransfer(input.user, userAssetsOut);
         return userAssetsOut;
     }
 }
