@@ -17,7 +17,7 @@ contract RedeemWithNegativeFlashLoanBorrow {
         int256 deltaCollateral;
         int256 deltaBorrow;
         address borrowFlashLoan;
-        address borrowToCollateralExchange;
+        address collateralToBorrowExchange;
         address vault;
         address user;
         address collateralAsset;
@@ -28,7 +28,7 @@ contract RedeemWithNegativeFlashLoanBorrow {
     struct RedeemWithNegativeFlashLoanBorrowCallbackPayload {
         int256 deltaShares;
         address borrowFlashLoan;
-        address borrowToCollateralExchange;
+        address collateralToBorrowExchange;
         address vault;
         address user;
         address collateralAsset;
@@ -46,7 +46,7 @@ contract RedeemWithNegativeFlashLoanBorrow {
             RedeemWithNegativeFlashLoanBorrowCallbackPayload({
                 deltaShares: input.deltaShares,
                 borrowFlashLoan: input.borrowFlashLoan,
-                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                collateralToBorrowExchange: input.collateralToBorrowExchange,
                 vault: input.vault,
                 user: input.user,
                 collateralAsset: input.collateralAsset,
@@ -73,9 +73,9 @@ contract RedeemWithNegativeFlashLoanBorrow {
         ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
         IERC20(payload.collateralAsset).forceApprove(
-            payload.borrowToCollateralExchange, uint256(-payload.deltaCollateral)
+            payload.collateralToBorrowExchange, uint256(-payload.deltaCollateral)
         );
-        uint256 borrowAssetsOut = IExchangeConnector(payload.borrowToCollateralExchange).exchangeIn(
+        uint256 borrowAssetsOut = IExchangeConnector(payload.collateralToBorrowExchange).exchangeIn(
             payload.collateralAsset, payload.borrowAsset, uint256(-payload.deltaCollateral), 0
         );
 
@@ -86,7 +86,7 @@ contract RedeemWithNegativeFlashLoanBorrow {
         );
         IERC20(payload.borrowAsset).safeTransfer(payload.user, userAssetsIn);
 
-        IERC20(payload.borrowAsset).forceApprove(payload.borrowAsset, uint256(-payload.deltaBorrow));
+        IERC20(payload.borrowAsset).forceApprove(payload.borrowFlashLoan, uint256(-payload.deltaBorrow));
         IFlashLoanConnector(payload.borrowFlashLoan).returnFlashLoan(
             payload.borrowAsset, uint256(-payload.deltaBorrow)
         );

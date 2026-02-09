@@ -84,7 +84,7 @@ contract MintWithPositiveFlashLoanCollateral {
         IERC20(payload.collateralAsset).safeTransferFrom(payload.user, address(this), userAssetsIn);
 
         IERC20(payload.vault).safeTransfer(payload.user, uint256(payload.deltaShares));
-        IERC20(payload.borrowAsset).forceApprove(
+        IERC20(payload.collateralAsset).forceApprove(
             payload.collateralFlashLoan, uint256(payload.deltaCollateral)
         );
         IFlashLoanConnector(payload.collateralFlashLoan).returnFlashLoan(

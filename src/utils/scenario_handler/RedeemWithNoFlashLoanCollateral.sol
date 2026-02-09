@@ -30,13 +30,13 @@ contract RedeemWithNoFlashLoanCollateral {
         ILowLevelVault(input.vault).executeLowLevelRebalanceShares(input.deltaShares);
 
         IERC20(input.borrowAsset).forceApprove(
-            input.borrowToCollateralExchange, uint256(-input.deltaBorrow)
+            input.borrowToCollateralExchange, uint256(input.deltaBorrow)
         );
         uint256 collateralAssetsOut = IExchangeConnector(input.borrowToCollateralExchange).exchangeIn(
-            input.borrowAsset, input.collateralAsset, uint256(-input.deltaBorrow), 0
+            input.borrowAsset, input.collateralAsset, uint256(input.deltaBorrow), 0
         );
 
-        uint256 userAssetsOut = collateralAssetsOut + uint256(input.deltaCollateral);
+        uint256 userAssetsOut = collateralAssetsOut + uint256(-input.deltaCollateral);
         require(
             userAssetsOut >= input.minAssetsCollateral,
             RedeemWithNoFlashLoanCollateralSlippageExceeded(userAssetsOut, input.minAssetsCollateral)

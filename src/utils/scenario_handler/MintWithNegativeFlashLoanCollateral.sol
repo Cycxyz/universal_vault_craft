@@ -65,11 +65,11 @@ contract MintWithNegativeFlashLoanCollateral {
         MintWithNegativeFlashLoanCallbackPayload calldata payload
     ) external {
         IERC20(payload.borrowAsset).forceApprove(
-            payload.collateralToBorrowExchange, uint256(-payload.deltaBorrow)
+            payload.vault, uint256(-payload.deltaBorrow)
         );
         ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(payload.borrowAsset).safeTransferFrom(
+        IERC20(payload.collateralAsset).safeTransferFrom(
             payload.user, address(this), payload.maxAssetsCollateral
         );
 

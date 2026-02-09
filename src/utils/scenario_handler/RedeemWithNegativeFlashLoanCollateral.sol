@@ -17,7 +17,7 @@ contract RedeemWithNegativeFlashLoanCollateral {
         int256 deltaCollateral;
         int256 deltaBorrow;
         address borrowFlashLoan;
-        address borrowToCollateralExchange;
+        address collateralToBorrowExchange;
         address vault;
         address user;
         address collateralAsset;
@@ -28,7 +28,7 @@ contract RedeemWithNegativeFlashLoanCollateral {
     struct RedeemWithNegativeFlashLoanCollateralCallbackPayload {
         int256 deltaShares;
         address borrowFlashLoan;
-        address borrowToCollateralExchange;
+        address collateralToBorrowExchange;
         address vault;
         address user;
         address collateralAsset;
@@ -46,7 +46,7 @@ contract RedeemWithNegativeFlashLoanCollateral {
             RedeemWithNegativeFlashLoanCollateralCallbackPayload({
                 deltaShares: input.deltaShares,
                 borrowFlashLoan: input.borrowFlashLoan,
-                borrowToCollateralExchange: input.borrowToCollateralExchange,
+                collateralToBorrowExchange: input.collateralToBorrowExchange,
                 vault: input.vault,
                 user: input.user,
                 collateralAsset: input.collateralAsset,
@@ -72,11 +72,11 @@ contract RedeemWithNegativeFlashLoanCollateral {
         IERC20(payload.borrowAsset).forceApprove(payload.vault, uint256(-payload.deltaBorrow));
         ILowLevelVault(payload.vault).executeLowLevelRebalanceShares(payload.deltaShares);
 
-        IERC20(payload.borrowAsset).forceApprove(
-            payload.borrowToCollateralExchange, uint256(-payload.deltaBorrow)
+        IERC20(payload.collateralAsset).forceApprove(
+            payload.collateralToBorrowExchange, uint256(-payload.deltaCollateral)
         );
-        uint256 collateralAssetsIn = IExchangeConnector(payload.borrowToCollateralExchange).exchangeOut(
-            payload.borrowAsset, payload.collateralAsset, uint256(-payload.deltaBorrow), uint256(-payload.deltaCollateral)
+        uint256 collateralAssetsIn = IExchangeConnector(payload.collateralToBorrowExchange).exchangeOut(
+            payload.collateralAsset, payload.borrowAsset, uint256(-payload.deltaBorrow), uint256(-payload.deltaCollateral)
         );
 
         uint256 userAssetsOut = uint256(-payload.deltaCollateral) - collateralAssetsIn;
