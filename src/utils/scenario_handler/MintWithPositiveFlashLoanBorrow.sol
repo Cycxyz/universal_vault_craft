@@ -75,10 +75,10 @@ contract MintWithPositiveFlashLoanBorrow {
             payload.borrowAsset, payload.collateralAsset, uint256(payload.deltaCollateral), maxAmountIn
         );
 
-        uint256 userAssetsIn = borrowAssetsIn - uint256(-payload.deltaBorrow);
+        uint256 userAssetsIn = borrowAssetsIn - uint256(payload.deltaBorrow);
         uint256 refundAmount = payload.maxAssetsBorrow - userAssetsIn;
 
-        IERC20(payload.collateralAsset).safeTransfer(payload.user, refundAmount);
+        IERC20(payload.borrowAsset).safeTransfer(payload.user, refundAmount);
         IERC20(payload.vault).safeTransfer(payload.user, uint256(payload.deltaShares));
 
         IERC20(payload.collateralAsset).forceApprove(
