@@ -2,20 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {LowLevelHelper} from "../src/LowLevelHelper.sol";
 import {MockLowLevelVault} from "./utils/MockLowLevelVault.sol";
 import {MockExchangeConnector} from "./utils/MockExchangeConnector.sol";
 import {MockFlashLoanConnector} from "./utils/MockFlashLoanConnector.sol";
-import {console} from "forge-std/console.sol";
-
-contract MockERC20 is ERC20 {
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-}
+import {MockERC20} from "./utils/MockERC20.sol";
 
 contract LowLevelHelperTest is Test {
     LowLevelHelper public helper;
