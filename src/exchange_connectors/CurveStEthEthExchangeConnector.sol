@@ -2,34 +2,17 @@
 pragma solidity ^0.8.28;
 
 import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {ICurvePool} from "../interface/ICurvePool.sol";
+import {IWETH} from "../interface/IWETH.sol";
+import {IStEth} from "../interface/IStEth.sol";
+import {IwstETH} from "../interface/IwstETH.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-/// @notice Curve StableSwap pool: exchange(i, j, dx, min_dy); coins(0)=ETH, coins(1)=stETH
-interface ICurveStEthPool {
-    function coins(uint256 i) external view returns (address);
-    function exchange(int128 i, int128 j, uint256 dx, uint256 min_dy) external payable returns (uint256);
-}
-
-interface IWETH {
-    function deposit() external payable;
-    function withdraw(uint256 wad) external;
-}
-
-interface IStEth {
-    function totalSupply() external view returns (uint256);
-    function getTotalShares() external view returns (uint256);
-}
-
-interface IwstETH {
-    function wrap(uint256 _stETHAmount) external returns (uint256);
-    function unwrap(uint256 _wstETHAmount) external returns (uint256);
-}
 
 contract CurveStEthEthExchangeConnector is IExchangeConnector {
     using SafeERC20 for IERC20;
 
-    ICurveStEthPool public immutable pool;
+    ICurvePool public immutable pool;
     address public immutable stEth;
     address public immutable wstETH;
     IWETH public immutable weth;
@@ -40,8 +23,8 @@ contract CurveStEthEthExchangeConnector is IExchangeConnector {
 
     constructor(address _pool, address _weth, address _wstETH) {
         require(_pool != address(0) && _weth != address(0) && _wstETH != address(0), "Zero address");
-        pool = ICurveStEthPool(_pool);
-        stEth = ICurveStEthPool(_pool).coins(1);
+        pool = ICurvePool(_pool);
+        stEth = ICurvePool(_pool).coins(1);
         weth = IWETH(_weth);
         wstETH = _wstETH;
         require(stEth != address(0), "Invalid pool coins");
