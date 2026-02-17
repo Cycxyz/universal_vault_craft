@@ -109,6 +109,7 @@ contract CurveStEthEthExchangeConnector is IExchangeConnector {
 
     function exchangeOut(address assetIn, address assetOut, uint256 amountOut, uint256 maxAmountIn)
         external
+        payable
         override
         returns (uint256 amountIn)
     {
@@ -125,6 +126,7 @@ contract CurveStEthEthExchangeConnector is IExchangeConnector {
 
     function exchangeIn(address assetIn, address assetOut, uint256 amountIn, uint256 minAmountOut)
         external
+        payable
         override
         returns (uint256 amountOut)
     {

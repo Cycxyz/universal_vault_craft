@@ -42,6 +42,7 @@ contract UniswapV3ExchangeConnector is IExchangeConnector, IUniswapV3SwapCallbac
 
     function exchangeOut(address assetIn, address assetOut, uint256 amountOut, uint256 maxAmountIn)
         external
+        payable
         override
         returns (uint256 amountIn)
     {
@@ -80,6 +81,7 @@ contract UniswapV3ExchangeConnector is IExchangeConnector, IUniswapV3SwapCallbac
 
     function exchangeIn(address assetIn, address assetOut, uint256 amountIn, uint256 minAmountOut)
         external
+        payable
         override
         returns (uint256 amountOut)
     {
