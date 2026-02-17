@@ -2,11 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {WethExchangeConnector} from "../src/exchange_connectors/WethExchangeConnector.sol";
+import {WeethExchangeConnector} from "../src/exchange_connectors/WeethExchangeConnector.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract WethExchangeConnectorTest is Test {
-    WethExchangeConnector public connector;
+contract WeethExchangeConnectorTest is Test {
+    WeethExchangeConnector public connector;
     
     // Mainnet addresses
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -21,7 +21,7 @@ contract WethExchangeConnectorTest is Test {
         string memory rpcUrl = vm.envString("RPC_MAINNET");
         vm.createSelectFork(rpcUrl, FORK_BLOCK);
 
-        connector = new WethExchangeConnector(WETH);
+        connector = new WeethExchangeConnector(WETH);
         
         // Give user some WETH tokens
         deal(WETH, user, WETH_AMOUNT * 10);

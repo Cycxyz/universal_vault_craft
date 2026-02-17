@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {CurveUsdtDaiSusdeExchangeConnector} from "../src/exchange_connectors/CurveUsdtDaiSusdeExchangeConnector.sol";
+import {CurveUsdtDaiSusdsExchangeConnector} from "../src/exchange_connectors/CurveUsdtDaiSusdsExchangeConnector.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IUSDSMigration} from "../src/interface/IUSDS.sol";
@@ -10,7 +10,7 @@ import {IUSDSMigration} from "../src/interface/IUSDS.sol";
 contract CurveUsdtDaiSusdsExchangeConnectorTest is Test {
     using SafeERC20 for IERC20;
     
-    CurveUsdtDaiSusdeExchangeConnector public connector;
+    CurveUsdtDaiSusdsExchangeConnector public connector;
     
     // Mainnet addresses
     address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
@@ -42,7 +42,7 @@ contract CurveUsdtDaiSusdsExchangeConnectorTest is Test {
         // Give user some USDT
         deal(USDT, user, TEST_AMOUNT * 10);
         
-        connector = new CurveUsdtDaiSusdeExchangeConnector(
+        connector = new CurveUsdtDaiSusdsExchangeConnector(
             USDS,
             SUSDS,
             MIGRATION_CONTRACT

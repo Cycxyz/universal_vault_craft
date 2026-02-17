@@ -8,7 +8,7 @@ import {IEETH} from "../interface/IEETH.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract WethExchangeConnector is IExchangeConnector {
+contract WeethExchangeConnector is IExchangeConnector {
     using SafeERC20 for IERC20;
 
     // ether.fi WEETH (Wrapped eETH) contract address on Ethereum mainnet
