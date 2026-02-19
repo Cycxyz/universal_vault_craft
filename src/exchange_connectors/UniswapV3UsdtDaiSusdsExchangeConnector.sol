@@ -32,10 +32,10 @@ contract UniswapV3UsdtDaiSusdsExchangeConnector is IExchangeConnector, IUniswapV
     IUniswapV3Pool public constant pool = IUniswapV3Pool(0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406);
     address public immutable USDS;
     address public immutable SUSDS;
+    IUSDSMigration public immutable usdsMigration;
     uint160 internal constant MIN_SQRT_RATIO = 4295128739;
     uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
 
-    IUSDSMigration public immutable usdsMigration;
     IsUSDS public immutable susds;
 
     error InvalidPool();
