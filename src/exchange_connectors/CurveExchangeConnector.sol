@@ -1,30 +1,67 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
+import {CommonExchangeConnector} from "./CommonExchangeConnector.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ICurvePool} from "../interface/ICurvePool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract CurveExchangeConnector is IExchangeConnector_v0 {
+contract CurveExchangeConnector is CommonExchangeConnector {
     using SafeERC20 for IERC20;
 
     ICurvePool public immutable pool;
     uint256 public immutable numCoins;
+    address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    error ZeroPool();
+    error InvalidNumCoins();
     error InvalidTokenPair();
-    error TokenNotFound();
-    error SlippageExceeded();
-    error InvalidPool();
 
     constructor(address _pool, uint256 _numCoins) {
-        require(_pool != address(0), InvalidPool());
-        require(_numCoins > 0, InvalidPool());
+        require(_pool != address(0), ZeroPool());
+        require(_numCoins > 0, InvalidNumCoins());
         pool = ICurvePool(_pool);
         numCoins = _numCoins;
     }
 
-    receive() external payable {}
+    function _swapIn(address swapAssetIn, address swapAssetOut, uint256 amountIn)
+        internal
+        override
+        returns (uint256 amountOut)
+    {
+        (int128 i, int128 j) = _requireValidPair(swapAssetIn, swapAssetOut);
+        return _swapOnCurve(i, j, amountIn, 0, swapAssetIn);
+    }
+
+    function _swapOut(address swapAssetIn, address swapAssetOut, uint256 maxAmountIn, uint256 amountOut)
+        internal
+        override
+        returns (uint256 amountIn)
+    {
+        (int128 i, int128 j) = _requireValidPair(swapAssetIn, swapAssetOut);
+        uint256 receivedAmountOut = _swapOnCurve(i, j, maxAmountIn, amountOut, swapAssetIn);
+        uint256 excessAmountInSwapAssetOut = receivedAmountOut - amountOut;
+        uint256 excessAmountInSwapAssetIn;
+        if (excessAmountInSwapAssetOut > 0) {
+            excessAmountInSwapAssetIn = _swapOnCurve(j, i, excessAmountInSwapAssetOut, 0, swapAssetOut);
+        }
+        amountIn = maxAmountIn - excessAmountInSwapAssetIn;
+        return amountIn;
+    }
+
+    function _swapOnCurve(int128 i, int128 j, uint256 amountIn, uint256 minAmountOut, address assetIn)
+        internal
+        returns (uint256 amountOut)
+    {
+        if (assetIn == ETH) {
+            amountOut = pool.get_dy(i, j, amountIn);
+            pool.exchange{value: amountIn}(i, j, amountIn, minAmountOut);
+        } else {
+            amountOut = pool.get_dy(i, j, amountIn);
+            IERC20(assetIn).forceApprove(address(pool), amountIn);
+            pool.exchange(i, j, amountIn, minAmountOut);
+        }
+        return amountOut;
+    }
 
     function _findTokenIndex(address token) internal view returns (int128 index) {
         for (uint256 i = 0; i < numCoins; i++) {
@@ -32,56 +69,12 @@ contract CurveExchangeConnector is IExchangeConnector_v0 {
                 return int128(int256(i));
             }
         }
-        revert TokenNotFound();
+        revert InvalidTokenPair();
     }
 
     function _requireValidPair(address assetIn, address assetOut) internal view returns (int128 i, int128 j) {
         i = _findTokenIndex(assetIn);
         j = _findTokenIndex(assetOut);
         require(i != j, InvalidTokenPair());
-    }
-
-    function exchangeIn(address assetIn, address assetOut, uint256 amountIn, uint256 minAmountOut)
-        external
-        payable
-        override
-        returns (uint256 amountOut)
-    {
-        (int128 i, int128 j) = _requireValidPair(assetIn, assetOut);
-        
-        IERC20(assetIn).safeTransferFrom(msg.sender, address(this), amountIn);
-        SafeERC20.forceApprove(IERC20(assetIn), address(pool), amountIn);
-
-        amountOut = pool.exchange(i, j, amountIn, minAmountOut);
-        require(amountOut >= minAmountOut, SlippageExceeded());
-
-        IERC20(assetOut).safeTransfer(msg.sender, amountOut);
-    }
-
-    function exchangeOut(address assetIn, address assetOut, uint256 amountOut, uint256 maxAmountIn)
-        external
-        payable
-        override
-        returns (uint256 amountIn)
-    {
-        (int128 i, int128 j) = _requireValidPair(assetIn, assetOut);
-        
-        IERC20(assetIn).safeTransferFrom(msg.sender, address(this), maxAmountIn);
-        SafeERC20.forceApprove(IERC20(assetIn), address(pool), maxAmountIn);
-        
-        uint256 received = pool.exchange(i, j, maxAmountIn, amountOut);
-        require(received >= amountOut, SlippageExceeded());
-
-        IERC20(assetOut).safeTransfer(msg.sender, amountOut);
-
-        uint256 excess = received - amountOut;
-        if (excess > 0) {
-            SafeERC20.forceApprove(IERC20(assetOut), address(pool), excess);
-            uint256 refunded = pool.exchange(j, i, excess, 0);
-            IERC20(assetIn).safeTransfer(msg.sender, refunded);
-            amountIn = maxAmountIn - refunded;
-        } else {
-            amountIn = maxAmountIn;
-        }
     }
 }

@@ -10,6 +10,7 @@ contract StEthWstEthWrapper is IExchangeWrapper {
     using SafeERC20 for IERC20;
 
     error InvalidTokenPair();
+    error StethToWstEthWrapFailed();
 
     IStEth public constant stEth = IStEth(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
     IwstETH public constant wstEth = IwstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
@@ -24,7 +25,7 @@ contract StEthWstEthWrapper is IExchangeWrapper {
     }
 
     function previewWrappingOperation(address assetIn, address assetOut, uint256 amountOut)
-        external
+        public
         view
         onlyStEthWstEth(assetIn, assetOut)
         returns (uint256 amountIn)
@@ -40,7 +41,7 @@ contract StEthWstEthWrapper is IExchangeWrapper {
         }
     }
 
-    function executeWrappingOperation(address assetIn, address assetOut, uint256 amountIn)
+    function executeWrappingOperationIn(address assetIn, address assetOut, uint256 amountIn)
         external
         override
         onlyStEthWstEth(assetIn, assetOut)
@@ -53,5 +54,28 @@ contract StEthWstEthWrapper is IExchangeWrapper {
             amountOut = IwstETH(wstEth).unwrap(amountIn);
         }
         return amountOut;
+    }
+
+    function executeWrappingOperationOut(address assetIn, address assetOut, uint256 amountOut)
+        external
+        override
+        onlyStEthWstEth(assetIn, assetOut)
+        returns (uint256 amountIn)
+    {
+        if (assetIn == address(wstEth)) {
+            uint256 unwrapAmount = previewWrappingOperation(assetIn, assetOut, amountOut);
+            IwstETH(wstEth).unwrap(unwrapAmount);
+            return unwrapAmount;
+        } else {
+            uint256 wrapAmount = previewWrappingOperation(assetIn, assetOut, amountOut);
+
+            uint256 balanceBefore = IERC20(address(stEth)).balanceOf(address(this));
+            
+            IERC20(address(stEth)).forceApprove(address(wstEth), wrapAmount);
+            require(IwstETH(wstEth).wrap(wrapAmount) >= amountOut, StethToWstEthWrapFailed());
+            
+            uint256 balanceAfter = IERC20(address(stEth)).balanceOf(address(this));
+            return balanceBefore - balanceAfter;
+        }
     }
 }

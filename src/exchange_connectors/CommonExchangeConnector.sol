@@ -5,6 +5,7 @@ import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
 import {IExchangeWrapper} from "../interface/IExchangeWrapper.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {console} from "forge-std/console.sol";
 
 abstract contract CommonExchangeConnector is IExchangeConnector {
     using SafeERC20 for IERC20;
@@ -12,10 +13,11 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
     function exchangeIn(ExchangeInParams memory params) external payable override returns (uint256 amountOut) {
         IERC20(params.assetIn).safeTransferFrom(msg.sender, address(this), params.amountIn);
         uint256 swapAmountIn =
-            _makePreSwapIfNeeded(params.preExchangeWrapper, params.assetIn, params.swapAssetIn, params.amountIn);
+            _makePreSwapIfNeededIn(params.preExchangeWrapper, params.assetIn, params.swapAssetIn, params.amountIn);
         uint256 swapAmountOut = _swapIn(params.swapAssetIn, params.swapAssetOut, swapAmountIn);
         require(swapAmountOut >= params.minAmountOut, SlippageExceeded());
-        amountOut = _makePostSwapIfNeeded(params.postExchangeWrapper, params.swapAssetOut, params.assetOut, swapAmountOut);
+        amountOut =
+            _makePostSwapIfNeededIn(params.postExchangeWrapper, params.swapAssetOut, params.assetOut, swapAmountOut);
         IERC20(params.assetOut).safeTransfer(msg.sender, amountOut);
         return amountOut;
     }
@@ -23,7 +25,7 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
     function exchangeOut(ExchangeOutParams memory params) external payable override returns (uint256 amountIn) {
         IERC20(params.assetIn).safeTransferFrom(msg.sender, address(this), params.maxAmountIn);
         uint256 maxAmountInSwapAssetIn =
-            _makePreSwapIfNeeded(params.preExchangeWrapper, params.assetIn, params.swapAssetIn, params.maxAmountIn);
+            _makePreSwapIfNeededIn(params.preExchangeWrapper, params.assetIn, params.swapAssetIn, params.maxAmountIn);
 
         uint256 swapAmountOut =
             _calculateSwapOutAmount(params.postExchangeWrapper, params.swapAssetOut, params.assetOut, params.amountOut);
@@ -35,7 +37,8 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
         );
         amountIn = params.maxAmountIn - refundedAmountInAssetIn;
 
-        _makePostSwapIfNeeded(params.postExchangeWrapper, params.swapAssetOut, params.assetOut, swapAmountOut);
+        uint256 amountInSwapAssetOutWrapped = _makePostSwapIfNeededOut(params.postExchangeWrapper, params.swapAssetOut, params.assetOut, params.amountOut);
+        require(swapAmountOut >= amountInSwapAssetOutWrapped, InvalidWrapper());
         IERC20(params.assetOut).safeTransfer(msg.sender, params.amountOut);
         return amountIn;
     }
@@ -53,23 +56,41 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
         return amountOut;
     }
 
-    function _executeWrappingOperation(address wrapper, address assetIn, address assetOut, uint256 amountIn)
+    function _executeWrappingOperationIn(address wrapper, address assetIn, address assetOut, uint256 amountIn)
         internal
         returns (uint256 amountOut)
     {
-        (bool success, bytes memory data) = wrapper.delegatecall(
-            abi.encodeCall(IExchangeWrapper.executeWrappingOperation, (assetIn, assetOut, amountIn))
-        );
-        require(success, WrappingOperationFailed(wrapper, assetIn, assetOut, amountIn));
+        return _executeWrappingOperation(wrapper, assetIn, assetOut, amountIn, true);
+    }
+
+    function _executeWrappingOperationOut(address wrapper, address assetIn, address assetOut, uint256 amountOut)
+        internal
+        returns (uint256 amountIn)
+    {
+        return _executeWrappingOperation(wrapper, assetIn, assetOut, amountOut, false);
+    }
+
+    function _executeWrappingOperation(address wrapper, address assetIn, address assetOut, uint256 amount, bool isIn)
+        internal
+        returns (uint256 amountOut)
+    {
+        bytes memory call;
+        if (isIn) {
+            call = abi.encodeCall(IExchangeWrapper.executeWrappingOperationIn, (assetIn, assetOut, amount));
+        } else {
+            call = abi.encodeCall(IExchangeWrapper.executeWrappingOperationOut, (assetIn, assetOut, amount));
+        }
+        (bool success, bytes memory data) = wrapper.delegatecall(call);
+        require(success, WrappingOperationFailed(wrapper, assetIn, assetOut, amount, isIn));
         return abi.decode(data, (uint256));
     }
 
-    function _makePreSwapIfNeeded(address wrapper, address assetIn, address assetOut, uint256 amountIn)
+    function _makePreSwapIfNeededIn(address wrapper, address assetIn, address assetOut, uint256 amountIn)
         internal
         returns (uint256 swapAmountIn)
     {
         if (wrapper != address(0)) {
-            return _executeWrappingOperation(wrapper, assetIn, assetOut, amountIn);
+            return _executeWrappingOperationIn(wrapper, assetIn, assetOut, amountIn);
         }
         return amountIn;
     }
@@ -85,7 +106,7 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
         }
 
         if (preWrapper != address(0)) {
-            refundedInAssetsIn = _executeWrappingOperation(preWrapper, swapAssetIn, assetIn, refundAmountInswapAssetIn);
+            refundedInAssetsIn = _executeWrappingOperationIn(preWrapper, swapAssetIn, assetIn, refundAmountInswapAssetIn);
         } else {
             refundedInAssetsIn = refundAmountInswapAssetIn;
         }
@@ -94,14 +115,24 @@ abstract contract CommonExchangeConnector is IExchangeConnector {
         return refundedInAssetsIn;
     }
 
-    function _makePostSwapIfNeeded(address postWrapper, address assetIn, address assetOut, uint256 amountIn)
+    function _makePostSwapIfNeededIn(address postWrapper, address assetIn, address assetOut, uint256 amountIn)
         internal
         returns (uint256 amountOut)
     {
         if (postWrapper != address(0)) {
-            return _executeWrappingOperation(postWrapper, assetIn, assetOut, amountIn);
+            return _executeWrappingOperationIn(postWrapper, assetIn, assetOut, amountIn);
         }
         return amountIn;
+    }
+
+    function _makePostSwapIfNeededOut(address postWrapper, address assetIn, address assetOut, uint256 amountOut)
+        internal
+        returns (uint256 amountIn)
+    {
+        if (postWrapper != address(0)) {
+            return _executeWrappingOperationOut(postWrapper, assetIn, assetOut, amountOut);
+        }
+        return amountOut;
     }
 
     function _swapIn(address swapAssetIn, address swapAssetOut, uint256 amountIn)

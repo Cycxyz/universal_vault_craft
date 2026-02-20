@@ -25,8 +25,9 @@ interface IExchangeConnector {
         address postExchangeWrapper;
     }
 
-    error WrappingOperationFailed(address wrapper, address assetIn, address assetOut, uint256 amountIn);
+    error WrappingOperationFailed(address wrapper, address assetIn, address assetOut, uint256 amount, bool isIn);
     error SlippageExceeded();
+    error InvalidWrapper();
 
     function exchangeIn(ExchangeInParams memory params) external payable returns (uint256 amountOut);
     function exchangeOut(ExchangeOutParams memory params) external payable returns (uint256 amountIn);
