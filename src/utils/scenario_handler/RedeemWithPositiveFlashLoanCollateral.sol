@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ILowLevelVault} from "../../interface/ILowLevelVault.sol";
 import {IFlashLoanConnector} from "../../interface/IFlashLoanConnector.sol";
-import {IExchangeConnector} from "../../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../../interface/IExchangeConnector_v0.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract RedeemWithPositiveFlashLoanCollateral {
@@ -75,7 +75,7 @@ contract RedeemWithPositiveFlashLoanCollateral {
         IERC20(payload.borrowAsset).forceApprove(
             payload.borrowToCollateralExchange, uint256(payload.deltaBorrow)
         );
-        uint256 collateralAssetsOut = IExchangeConnector(payload.borrowToCollateralExchange).exchangeIn(
+        uint256 collateralAssetsOut = IExchangeConnector_v0(payload.borrowToCollateralExchange).exchangeIn(
             payload.borrowAsset, payload.collateralAsset, uint256(payload.deltaBorrow), 0
         );
 

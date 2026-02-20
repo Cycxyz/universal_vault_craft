@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {PoolKey, SwapParams} from "../types/UniswapV4Structs.sol";
@@ -11,7 +11,7 @@ import {IUnlockCallback} from "../interface/IUnlockCallback.sol";
 import {BalanceDeltaLibrary} from "../libraries/BalanceDeltaLibrary.sol";
 
 
-contract UniswapV4ExchangeConnector is IExchangeConnector, IUnlockCallback {
+contract UniswapV4ExchangeConnector is IExchangeConnector_v0, IUnlockCallback {
     using SafeERC20 for IERC20;
 
     IPoolManager public immutable POOL_MANAGER;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
 import {IUSDSMigration} from "../interface/IUSDS.sol";
 import {IsUSDS} from "../interface/IsUSDS.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,7 +23,7 @@ interface IUniswapV3SwapCallback {
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 }
 
-contract UniswapV3UsdtDaiSusdsExchangeConnector is IExchangeConnector, IUniswapV3SwapCallback {
+contract UniswapV3UsdtDaiSusdsExchangeConnector is IExchangeConnector_v0, IUniswapV3SwapCallback {
     using SafeERC20 for IERC20;
 
     // Hardcoded addresses on Ethereum mainnet

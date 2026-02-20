@@ -2,7 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {CurveExchangeConnector, ExchangeOutParams, ExchangeInParams} from "../src/exchange_connectors/CurveExchangeConnector_V2.sol";
+import {CurveExchangeConnector} from "../src/exchange_connectors/CurveExchangeConnector_V2.sol";
+import {IExchangeConnector} from "../src/interface/IExchangeConnector.sol";
 import {WethEthWrapper} from "../src/exchange_connectors/WethEthWrapper.sol";
 import {StEthWstEthWrapper} from "../src/exchange_connectors/StEthWstEthWrapper.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -28,11 +29,11 @@ contract CurveV2ExchangeConnectorTest is Test {
         vm.startPrank(user);
         IERC20(weth).approve(address(connector), maxAmountIn);
         uint256 amountIn = connector.exchangeOut(
-            ExchangeOutParams({
-                assetIn: weth,
-                poolAssetIn: eth,
+                IExchangeConnector.ExchangeOutParams({
+                    assetIn: weth,
+                swapAssetIn: eth,
                 assetOut: wstEth,
-                poolAssetOut: stEth,
+                swapAssetOut: stEth,
                 amountOut: amountOut,
                 maxAmountIn: maxAmountIn,
                 preExchangeWrapper: address(wethEthWrapper),
@@ -68,11 +69,11 @@ contract CurveV2ExchangeConnectorTest is Test {
         vm.startPrank(user);
         IERC20(wstEth).approve(address(connector), maxAmountIn);
         uint256 amountIn = connector.exchangeOut(
-            ExchangeOutParams({
+            IExchangeConnector.ExchangeOutParams({
                 assetIn: wstEth,
-                poolAssetIn: stEth,
+                swapAssetIn: stEth,
                 assetOut: weth,
-                poolAssetOut: eth,
+                swapAssetOut: eth,
                 amountOut: amountOut,
                 maxAmountIn: maxAmountIn,
                 preExchangeWrapper: address(stEthWstEthWrapper),
@@ -108,11 +109,11 @@ contract CurveV2ExchangeConnectorTest is Test {
         vm.startPrank(user);
         IERC20(wstEth).approve(address(connector), amountIn);
         uint256 amountOut = connector.exchangeIn(
-            ExchangeInParams({
+            IExchangeConnector.ExchangeInParams({
                 assetIn: wstEth,
-                poolAssetIn: stEth,
+                swapAssetIn: stEth,
                 assetOut: weth,
-                poolAssetOut: eth,
+                swapAssetOut: eth,
                 amountIn: amountIn,
                 minAmountOut: minAmountOut,
                 preExchangeWrapper: address(stEthWstEthWrapper),

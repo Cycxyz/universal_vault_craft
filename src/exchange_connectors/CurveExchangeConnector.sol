@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
 import {ICurvePool} from "../interface/ICurvePool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract CurveExchangeConnector is IExchangeConnector {
+contract CurveExchangeConnector is IExchangeConnector_v0 {
     using SafeERC20 for IERC20;
 
     ICurvePool public immutable pool;

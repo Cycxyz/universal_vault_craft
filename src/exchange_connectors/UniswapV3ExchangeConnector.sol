@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -21,7 +21,7 @@ interface IUniswapV3SwapCallback {
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 }
 
-contract UniswapV3ExchangeConnector is IExchangeConnector, IUniswapV3SwapCallback {
+contract UniswapV3ExchangeConnector is IExchangeConnector_v0, IUniswapV3SwapCallback {
     using SafeERC20 for IERC20;
 
     IUniswapV3Pool public immutable pool;

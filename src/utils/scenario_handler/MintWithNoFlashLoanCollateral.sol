@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ILowLevelVault} from "../../interface/ILowLevelVault.sol";
-import {IExchangeConnector} from "../../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../../interface/IExchangeConnector_v0.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract MintWithNoFlashLoanCollateral {
@@ -28,7 +28,7 @@ contract MintWithNoFlashLoanCollateral {
         IERC20(input.collateralAsset).safeTransferFrom(input.user, address(this), input.maxAssetsCollateral);
 
         IERC20(input.collateralAsset).forceApprove(input.collateralToBorrowExchange, input.maxAssetsCollateral);
-        uint256 collateralAssetsIn = IExchangeConnector(input.collateralToBorrowExchange).exchangeOut(
+        uint256 collateralAssetsIn = IExchangeConnector_v0(input.collateralToBorrowExchange).exchangeOut(
             input.collateralAsset, input.borrowAsset, uint256(-input.deltaBorrow), input.maxAssetsCollateral
         );
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {IExchangeConnector} from "../interface/IExchangeConnector.sol";
+import {IExchangeConnector_v0} from "../interface/IExchangeConnector_v0.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -19,7 +19,7 @@ interface IStEth {
     function getTotalShares() external view returns (uint256);
 }
 
-contract NativeWethToWstEthConnector is IExchangeConnector {
+contract NativeWethToWstEthConnector is IExchangeConnector_v0 {
     using SafeERC20 for IERC20;
 
     IWETH public constant weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -66,7 +66,7 @@ contract NativeWethToWstEthConnector is IExchangeConnector {
         return ethRequired;
     }
 
-    /// @inheritdoc IExchangeConnector
+    /// @inheritdoc IExchangeConnector_v0
     function exchangeIn(address assetIn, address assetOut, uint256 amountIn, uint256 minAmountOut)
         external
         payable
